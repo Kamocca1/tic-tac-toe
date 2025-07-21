@@ -1,11 +1,11 @@
 function Cell() {
-    let value = 0;
-    const addToken = (player) => {
-        value = player;
+    let value = "";
+    const addMark = (playerMark) => {
+        value = playerMark;
     };
     const getValue = () => value;
     return {
-        addToken,
+        addMark,
         getValue,
     };
 }
@@ -21,13 +21,9 @@ const GameBoard = (function () {
         }
     }
     const getBoard = () => board;
-    const dropToken = (column, player) => {
-        const availableCells = board
-            .filter((row) => row[column].getValue() === 0)
-            .map((row) => row[column]);
-        if (!availableCells.length) return;
-        const lowestRow = availableCells.length - 1;
-        board[lowestRow][column].addToken(player);
+    const placeMark = (row, column, playerMark) => {
+        if (board[row][column].getValue() !== "") return;
+        board[row][column].addMark(playerMark);
     };
     const printBoard = () => {
         const boardWithCellValues = board.map((row) => {
@@ -39,7 +35,7 @@ const GameBoard = (function () {
     };
     return {
         getBoard,
-        dropToken,
+        placeMark,
         printBoard,
     };
 })();
@@ -52,36 +48,103 @@ const GameController = (function (
     const players = [
         {
             name: playerOneName,
-            token: 1,
+            mark: "X",
         },
         {
             name: playerTwoName,
-            token: 2,
+            mark: "O",
         },
     ];
     let activePlayer = players[0];
-    const switchPlayerTurn = () => {
+    const getActivePlayer = () => activePlayer;
+    const switchActivePlayer = () => {
         activePlayer = activePlayer === players[0] ? players[1] : players[0];
     };
-    const getActivePlayer = () => activePlayer;
     const printNewRound = () => {
         board.printBoard();
         console.log(`${getActivePlayer().name}'s turn.`);
     };
-    const playRound = (column) => {
+    const playRound = (row, column) => {
         console.log(
-            `Dropping ${
+            `Placing ${
                 getActivePlayer().name
-            }'s token into column ${column}...`
+            }'s mark in square on row ${row} and column ${column}...`
         );
-        board.dropToken(column, getActivePlayer().token);
-        switchPlayerTurn();
+        board.placeMark(row, column, getActivePlayer().mark);
+        const checkWinner = () => {
+            const currentBoard = board.getBoard();
+            const mark = getActivePlayer().mark;
+
+            // Check rows
+            for (let i = 0; i < 3; i++) {
+                if (
+                    currentBoard[i][0].getValue() === mark &&
+                    currentBoard[i][1].getValue() === mark &&
+                    currentBoard[i][2].getValue() === mark
+                ) {
+                    return true;
+                }
+            }
+            // Check columns
+            for (let j = 0; j < 3; j++) {
+                if (
+                    currentBoard[0][j].getValue() === mark &&
+                    currentBoard[1][j].getValue() === mark &&
+                    currentBoard[2][j].getValue() === mark
+                ) {
+                    return true;
+                }
+            }
+            // Check diagonals
+            if (
+                currentBoard[0][0].getValue() === mark &&
+                currentBoard[1][1].getValue() === mark &&
+                currentBoard[2][2].getValue() === mark
+            ) {
+                return true;
+            }
+            if (
+                currentBoard[0][2].getValue() === mark &&
+                currentBoard[1][1].getValue() === mark &&
+                currentBoard[2][0].getValue() === mark
+            ) {
+                return true;
+            }
+            return false;
+        };
+        const checkTie = () => {
+            const currentBoard = board.getBoard();
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (currentBoard[i][j].getValue() === "") {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+        if (checkWinner()) {
+            board.printBoard();
+            console.log(`${getActivePlayer().name} wins!`);
+            return;
+        } else if (checkTie()) {
+            board.printBoard();
+            console.log("It's a tie!");
+            return;
+        }
+        switchActivePlayer();
         printNewRound();
     };
     printNewRound();
     return {
-        playRound,
-        getActivePlayer,
         getBoard: board.getBoard,
+        getActivePlayer,
+        playRound,
     };
 })();
+
+GameController.playRound(0, 0);
+GameController.playRound(1, 0);
+GameController.playRound(0, 1);
+GameController.playRound(2, 0);
+GameController.playRound(0, 2);
