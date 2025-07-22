@@ -41,21 +41,19 @@ const GameBoard = (function () {
     };
 })();
 
+function Player(name, mark) {
+    return {
+        name,
+        mark,
+    };
+}
+
 const GameController = (function (
     playerOneName = "Player One",
     playerTwoName = "Player Two"
 ) {
     const board = GameBoard;
-    const players = [
-        {
-            name: playerOneName,
-            mark: "X",
-        },
-        {
-            name: playerTwoName,
-            mark: "O",
-        },
-    ];
+    const players = [Player(playerOneName, "X"), Player(playerTwoName, "O")];
     let activePlayer = players[0];
     const getActivePlayer = () => activePlayer;
     const switchActivePlayer = () => {
