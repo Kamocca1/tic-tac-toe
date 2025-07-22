@@ -10,14 +10,15 @@ function Cell() {
     };
 }
 
-const GameBoard = (function () {
+// GameBoard is now a factory function to allow for resetting the board.
+function GameBoard() {
     const rows = 3;
     const columns = 3;
     const board = [];
     for (let i = 0; i < rows; i++) {
         board[i] = [];
         for (let j = 0; j < columns; j++) {
-            board[i][j] = Cell();
+            board[i].push(Cell());
         }
     }
     const getBoard = () => board;
@@ -39,7 +40,7 @@ const GameBoard = (function () {
         placeMark,
         printBoard,
     };
-})();
+}
 
 function Player(name, mark) {
     return {
@@ -48,11 +49,12 @@ function Player(name, mark) {
     };
 }
 
-const GameController = (function (
+// GameController is now a factory to create new game instances with different players.
+function GameController(
     playerOneName = "Player One",
     playerTwoName = "Player Two"
 ) {
-    const board = GameBoard;
+    const board = GameBoard();
     const players = [Player(playerOneName, "X"), Player(playerTwoName, "O")];
     let activePlayer = players[0];
     const getActivePlayer = () => activePlayer;
@@ -69,12 +71,10 @@ const GameController = (function (
                 getActivePlayer().name
             }'s mark in square on row ${row} and column ${column}...`
         );
-        // Convert row and column to numbers if they are strings
         row = Number(row);
         column = Number(column);
         const markPlaced = board.placeMark(row, column, getActivePlayer().mark);
         if (!markPlaced) {
-            // Invalid move, do not switch player or update turn
             return;
         }
         const checkWinner = () => {
@@ -146,19 +146,38 @@ const GameController = (function (
         getActivePlayer,
         playRound,
     };
-})();
+}
 
+// The ScreenController now manages the entire game flow.
 const ScreenController = (function () {
-    const game = GameController;
+    // DOM elements
+    const playerForm = document.querySelector(".player-form");
+    const player1Input = document.querySelector(".player1-input");
+    const player2Input = document.querySelector(".player2-input");
+    const startBtn = document.querySelector(".start-btn");
     const playerTurnDiv = document.querySelector(".turn");
     const boardDiv = document.querySelector(".board");
-    console.log("playerTurnDiv:", playerTurnDiv);
-    console.log("boardDiv:", boardDiv);
-    const updateScreen = () => {
-        boardDiv.textContent = "";
+
+    let game; // This will hold the current game instance.
+
+    // Updates the screen with the current game state.
+    const updateScreen = (roundResult) => {
+        if (!game) return;
+
+        boardDiv.textContent = ""; // Clear the board first
         const board = game.getBoard();
         const activePlayer = game.getActivePlayer();
-        playerTurnDiv.textContent = `${activePlayer.name}'s turn...`;
+
+        // Update the turn/result message
+        if (roundResult === "Win") {
+            playerTurnDiv.textContent = `${activePlayer.name} wins!`;
+        } else if (roundResult === "Tie") {
+            playerTurnDiv.textContent = "It's a tie!";
+        } else {
+            playerTurnDiv.textContent = `${activePlayer.name}'s turn...`;
+        }
+
+        // Render the game board
         board.forEach((row, rowIndex) => {
             row.forEach((cell, columnIndex) => {
                 const cellButton = document.createElement("button");
@@ -166,28 +185,63 @@ const ScreenController = (function () {
                 cellButton.dataset.row = rowIndex;
                 cellButton.dataset.column = columnIndex;
                 cellButton.textContent = cell.getValue();
+
+                // Disable cells if the game is over or the cell is taken
+                if (
+                    roundResult === "Win" ||
+                    roundResult === "Tie" ||
+                    cell.getValue() !== ""
+                ) {
+                    cellButton.disabled = true;
+                }
+
                 boardDiv.appendChild(cellButton);
             });
         });
     };
+
+    // Handles clicks on the game board.
     function clickHandlerBoard(e) {
         const selectedRow = e.target.dataset.row;
         const selectedColumn = e.target.dataset.column;
+
+        // Make sure a valid cell was clicked
         if (!selectedRow || !selectedColumn) return;
+
         const roundResult = game.playRound(selectedRow, selectedColumn);
-        updateScreen();
-        if (roundResult === "Win") {
-            updateScreen();
-            playerTurnDiv.textContent = `${game.getActivePlayer().name} wins!`;
+        updateScreen(roundResult);
+
+        // If the game ended, remove the listener and show the form to restart.
+        if (roundResult === "Win" || roundResult === "Tie") {
             boardDiv.removeEventListener("click", clickHandlerBoard);
-            return;
-        } else if (roundResult === "Tie") {
-            updateScreen();
-            playerTurnDiv.textContent = "It's a tie!";
-            boardDiv.removeEventListener("click", clickHandlerBoard);
-            return;
+            startBtn.textContent = "Restart Game";
+            playerForm.style.display = "flex";
         }
     }
-    boardDiv.addEventListener("click", clickHandlerBoard);
-    updateScreen();
+
+    // Handles the form submission to start or restart the game.
+    playerForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const player1Name = player1Input.value.trim() || "Player One";
+        const player2Name = player2Input.value.trim() || "Player Two";
+
+        // Create a new game instance with the player names.
+        game = GameController(player1Name, player2Name);
+
+        // Set up the UI for the game.
+        playerForm.style.display = "none";
+        boardDiv.style.display = "grid";
+        playerTurnDiv.style.display = "block";
+
+        // Add the event listener for game moves.
+        boardDiv.addEventListener("click", clickHandlerBoard);
+
+        updateScreen(); // Initial render of the board.
+    });
+
+    // Set the initial UI state on page load.
+    boardDiv.style.display = "none";
+    playerTurnDiv.style.display = "none";
+    playerForm.style.display = "flex";
 })();
